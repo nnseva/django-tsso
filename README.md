@@ -55,15 +55,15 @@ include the authentication middleware to the specific API provider, like Django 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         ...
-        'ssso.contrib.rest.authentication.TSSOAuthentication',
+        'tsso.contrib.rest.authentication.TSSOAuthentication',
         ...
     ]
 }
 
 ```
 
-The authenticated user is not connected to the session, and the Transparent SSO authentication
-protocol should be provided on every API call.
+Then the authenticated user is not connected to the Django session, and the
+Transparent SSO authentication protocol should be provided on every API call.
 
 More authentication backends for different API providers are coming later.
 
@@ -78,8 +78,8 @@ AUTHENTICATION_BACKENDS = (
 ```
 
 You may skip setting backend client key and secret, if you won't plan to
-activate OAuth1/2 login pipeline, and would like to have a Transparent SSO
-pipeline only.
+activate your own OAuth1/2 login pipeline, and would like to have a Transparent SSO
+authentication pipeline only.
 
 ## Authentication protocol
 
@@ -121,10 +121,10 @@ server without any changes on its' side.
 
 ###  Authorization steps
 
-#### Getting am access token
+#### Getting an access token
 
 The Client requests the access token from the authentication server using the OAuth-like protocol. The particular
-way to do it is out of our scope. The only significant result, that the Client. at some moment, knows the
+way to do it is out of our scope. The only significant result, that the Client, at some moment, knows the
 access token and token type, which is `Bearer` for the most OAuth2 cases.
 
 #### Getting access to the Service Provider's resource
@@ -150,7 +150,7 @@ as for the User details in the OAuth protocol.
 If the request returns the current user info, it means that the access to the Service Provider resource should be granted.
 
 The Service Provider may cache the token check results to avoid unnecessary requests to the Authentication Server
-every time when the ressource is requested. The `settings.TSSO_EXPIRATION_PERIOD` variable controls, how many
+every time when the resource is requested. The `settings.TSSO_EXPIRATION_PERIOD` variable controls, how many
 seconds the cached token is valid without additional check on the Authorization Server side.
 
 ## Controlling users in the Authentication Pipeline
@@ -173,5 +173,5 @@ restriction will not work for the Service Provider. Any user, who is registered 
 and get access to the Service Provider data. It happens, because the SSO subsystem of the Service Provider
 doesn't know about a Client ID used to generate this token, and as such, doesn't restrict access by the Client ID.
 
-Therefore, if you want to restrict access to the Service Provider by some circumstances, these circumstances shoulc be controlled
+Therefore, if you want to restrict access to the Service Provider by some circumstances, these circumstances should be controlled
 by your own code in the Authentication Pipeline.
