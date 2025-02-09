@@ -1,9 +1,7 @@
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets
+from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
-from rest_framework import permissions
 
 from . import serializers
 
@@ -26,7 +24,7 @@ class User(viewsets.ModelViewSet):
     @action(detail=False, methods=['options', 'get'], permission_classes=[permissions.IsAuthenticated])
     def me(self, request):
         """
-        Get the current user using GET /api/users/me
+        Get the current user using GET /api/drf/users/me
         """
         if self.request.method == 'OPTIONS':
             return Response({})

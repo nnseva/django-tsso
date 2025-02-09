@@ -15,7 +15,9 @@ class TSSOAuthentication(TSSOAuthenticationMixin, BaseAuthentication):
     def authenticate(self, request):
         """Override to make job"""
         try:
-            return self._authenticate(request)
+            triple = self._authenticate(request)
+            if triple:
+                return (triple[0], None)
         except dex.PermissionDenied as ex:
             raise rex.AuthenticationFailed(*ex.args)
 
