@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'social_django',
     'admin_auto_filters',
     'rest_framework',
+    'tastypie',
 ]
 
 MIDDLEWARE = [

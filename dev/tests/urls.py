@@ -21,10 +21,11 @@ except ImportError:
 from django.contrib import admin
 
 from tsso.views import sso_login
-
+from .resources import api
 
 urlpatterns = [
     re_path('admin/', admin.site.urls),
     re_path('api/drf/', include('tests.api_urls')),
     re_path('sso/', sso_login),
+    re_path(r'api/', include(api.urls)),
 ]

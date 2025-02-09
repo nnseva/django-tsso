@@ -27,7 +27,7 @@ class ModuleTest(TestCase):
         ]
     )
     def test_drf_sso_auth(self):
-        """Test API authentication using Django SSO Middleware"""
+        """Test DRF API authentication using Django SSO Middleware"""
         c = Client()
         response = c.get('/api/drf/users/')
         self.assertEqual(response.status_code, 401, response.content)
@@ -67,7 +67,7 @@ class ModuleTest(TestCase):
         ],
     )
     def test_drf_sso_auth_only(self):
-        """Test API authentication only with DRF SSO authenticator"""
+        """Test DRF API authentication only with DRF SSO authenticator"""
         c = Client()
         response = c.get('/api/drf/users/')
         self.assertEqual(response.status_code, 401, response.content)
@@ -105,12 +105,85 @@ class ModuleTest(TestCase):
             'tsso.middleware.TSSOMiddleware',
             'django.contrib.messages.middleware.MessageMiddleware',
             'django.middleware.clickjacking.XFrameOptionsMiddleware',
+        ]
+    )
+    def test_tastypie_sso_auth(self):
+        """Test Tastypie API authentication using Django SSO Middleware"""
+        c = Client()
+        response = c.get('/api/tastypie/user/')
+        self.assertEqual(response.status_code, 401, response.content)
+        response = c.get(
+            '/api/tastypie/user/',
+            HTTP_AUTHORIZATION='SSO fake:bearer:username:u3|email:u3@fake.me',
+        )
+        self.assertEqual(response.status_code, 401, response.content)
+        response = c.get(
+            '/api/tastypie/user/',
+            HTTP_AUTHORIZATION='SSO fake:bearer:username:u1|email:u1@fake.me',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(json.loads(response.content)['objects'][0]['username'], 'u1')
+
+        response = c.get(
+            '/api/tastypie/user/',
+            HTTP_AUTHORIZATION='SSO fake:bearer:username:u2|email:u2@fake.me',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(json.loads(response.content)['objects'][0]['username'], 'u2')
+
+    @override_settings(
+        MIDDLEWARE=[
+            'django.middleware.security.SecurityMiddleware',
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            'django.middleware.common.CommonMiddleware',
+            'django.middleware.csrf.CsrfViewMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            'django.contrib.messages.middleware.MessageMiddleware',
+            'django.middleware.clickjacking.XFrameOptionsMiddleware',
+        ]
+    )
+    def test_tastypie_sso_auth_only(self):
+        """Test Tastypie API authentication using Tastypie SSO Authentication"""
+        c = Client()
+        response = c.get('/api/tastypie/user/')
+        self.assertEqual(response.status_code, 401, response.content)
+        response = c.get(
+            '/api/tastypie/user/',
+            HTTP_AUTHORIZATION='SSO fake:bearer:username:u3|email:u3@fake.me',
+        )
+        self.assertEqual(response.status_code, 401, response.content)
+        response = c.get(
+            '/api/tastypie/user/',
+            HTTP_AUTHORIZATION='SSO fake:bearer:username:u1|email:u1@fake.me',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(json.loads(response.content)['objects'][0]['username'], 'u1')
+
+        response = c.get(
+            '/api/tastypie/user/',
+            HTTP_AUTHORIZATION='SSO fake:bearer:username:u2|email:u2@fake.me',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(json.loads(response.content)['objects'][0]['username'], 'u2')
+
+    @override_settings(
+        MIDDLEWARE=[
+            'django.middleware.security.SecurityMiddleware',
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            'django.middleware.common.CommonMiddleware',
+            'django.middleware.csrf.CsrfViewMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            'tsso.middleware.TSSOMiddleware',
+            'django.contrib.messages.middleware.MessageMiddleware',
+            'django.middleware.clickjacking.XFrameOptionsMiddleware',
         ],
     )
     def test_django_sso_auth(self):
         """Test Django authentication using Django SSO Middleware"""
         c = Client()
         response = c.get('/api/drf/users/')
+        self.assertEqual(response.status_code, 401, response.content)
+        response = c.get('/api/tastypie/user/')
         self.assertEqual(response.status_code, 401, response.content)
         response = c.get(
             '/admin/',
@@ -131,6 +204,11 @@ class ModuleTest(TestCase):
             '/api/drf/users/',
         )
         self.assertEqual(response.status_code, 200, response.content)
+        response = c.get(
+            '/api/tastypie/user/',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(json.loads(response.content)['objects'][0]['username'], 'u1')
         response = c.get(
             '/api/drf/users/me/',
         )
@@ -155,6 +233,11 @@ class ModuleTest(TestCase):
             '/api/drf/users/',
         )
         self.assertEqual(response.status_code, 200, response.content)
+        response = c.get(
+            '/api/tastypie/user/',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(json.loads(response.content)['objects'][0]['username'], 'u1')
         response = c.get(
             '/api/drf/users/me/',
         )
@@ -183,6 +266,11 @@ class ModuleTest(TestCase):
             '/api/drf/users/',
         )
         self.assertEqual(response.status_code, 200, response.content)
+        response = c.get(
+            '/api/tastypie/user/',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(json.loads(response.content)['objects'][0]['username'], 'u1')
         response = c.get(
             '/api/drf/users/me/',
         )
