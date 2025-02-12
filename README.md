@@ -50,7 +50,9 @@ MIDDLEWARE = [
 ]
 ```
 
-Switch necessary OAuth1/2 authorization backends on.
+Switch necessary OAuth1/2 authorization backends on, using [Python Social Auth](https://github.com/python-social-auth)
+library having enormously rich [set of provided backends](https://python-social-auth.readthedocs.io/en/latest/backends/index.html)
+for different authentication servers.
 
 ```python
 AUTHENTICATION_BACKENDS = (
@@ -60,9 +62,14 @@ AUTHENTICATION_BACKENDS = (
 )
 ```
 
-You may skip setting backend client key and secret, if you won't plan to
-activate your own OAuth1/2 login pipeline, and would like to have a Transparent SSO
+You may skip setting the backend client key and secret values, if you won't plan to
+activate your own Python Social Auth-provided login pipeline, and would like to have a Transparent SSO
 authentication pipeline only.
+
+The Transparent SSO login pipeline actually uses the
+[Python Social Auth pipeline](https://python-social-auth.readthedocs.io/en/latest/pipeline.html)
+to provide the authentication, so any customization of the Python Social Auth
+pipeline will actually be applied to the Transparent SSO also.
 
 ### Django session SSO Login URL
 
@@ -138,6 +145,15 @@ samples.
 Pull requests for third-party API libraries with specific authentication
 backends are appretiated.
 
+#### Common TSSOMiddleware authentication vs. API-specific authentication
+
+You don't actually need to use any API-specific authentication middleware,
+if you use the common `TSSOMiddleware`. This sentence also relates to any other
+API provider referring to the `request.user` attribute to authorize the request. The both
+[Django REST API](https://www.django-rest-framework.org/) and
+[Tastypie API](https://django-tastypie.readthedocs.io/en/latest/toc.html) do it
+(after some basic tune).
+
 ### Other settings
 
 - `settings.TSSO_FORBID_QUERY_AUTHENTICATION` - forbids SSO authentication using HTTP query parameter, `False` by default
@@ -161,8 +177,9 @@ There are three sides of the authentication protocol.
 The Authentication Server may be any token-based OAuth2 server, for which the correspondent backend is provided by the
 Python Social Auth package, or third party using the Python Social Auth package to create its own backend.
 
-The OAuth1 Authentication Servers may be also applicable, but it was not tested by the package's author yet.
-Please provide your own experience with OAuth1 Authentication Server, or even other token-based authentication servers.
+The OAuth1 Authentication Servers, or any other providing the token and allowing to get the user info
+may be also applicable, but it was not tested by the package's author yet. Please provide your own experience
+with OAuth1, or other token-based authentication servers.
 
 The Client shoud be able to interact with the selected Authentication Server, out of the scope of this protocol.
 Finally, it should get an active access token and send it to the Service Provider to authorize the request.
@@ -184,7 +201,13 @@ while the following protocol is totally *transparent* for the Authorization Serv
 That's a reason why the `Transparent` is a part of the package name.
 
 The practical result is that you can use ***any*** existent OAuth1/2 authorization
-server without any changes on its' side.
+server without any changes on their side.
+
+Some of OAuth Authorization Servers provide additional, not yet standartized ways
+to verify or introspect the provided token and get additional information about user's scope
+on these servers. You can use these ways to restrict user's access to your
+Service Provider server analyzing the additional user information. See also
+[some proposals](https://www.rfc-editor.org/rfc/inline-errata/rfc7662.html) for the RFC.
 
 ###  Authorization steps
 
@@ -201,43 +224,89 @@ The client requests any Service Provider resource, using one of the following wa
 - the HTTP query string
 - the HTTP POST form-based body
 
-The `Authorization` header value consists of the type (determined by the `settings.TSSO_KEYWORD` string),
-following by the specific SSO authorization value.
+The Client provides the token to the Service Provider, using `authentication keyword` and `authentication value`.
 
-The HTTP query string uses parameter whose name corresponds to the `settings.TSSO_KEYWORD`. Value of
-the parameter should be the specific SSO authorization value.
+The `authentication keyword` is determined by the `settings.TSSO_KEYWORD` string and is always the same for the
+whole Service Provider instance, `"SSO"` by default.
 
-The HTTP POST form-based body should contain a parameter whose name corresponds to the `settings.TSSO_KEYWORD`.
-Value of the parameter should be the specific SSO authorization value. The HTTP POST body format should be
-one of assigned for the form output. Other formats are ignored.
-
-You can forbid trying to read GET or POST parameters using one of settings listed above.
-
-The authorization value consists of three parts, separated by colon `:`, or another symbol determined by settings.
+The `authentication value` consists of three parts, separated by colon `:`, or another symbol determined by settings.
 
 The first part is a name of the [Python Social Auth](https://python-social-auth.readthedocs.io/en/latest/backends/index.html) package
 authorization backend on the Service Provider side. This name is determined by the `name` attribute of the backend. You
 can see a sample of such backend (created for testing purposes) in `dev/tests/fake_oauth2.py`. Every such backend uses
-unique name.
+unique name. Some samples of such a name are the following:
 
-The second part is an access token type, `Bearer` in most OAuth2 cases. It is a token type when accessing the Authentication Server.
+- `google-oauth2`
+- `google-oauth`
+- `google-openidconnect`
+- `twitter`
+- `twitter-oauth2`
+- `github`
+- etc...
 
-The third part is an access token itself, whose value has been just got on the first step of the authentication protocol.
+The second part is an access token type, `Bearer` in most OAuth2 cases. It is passed as a token type
+when the Service Provider requests the Authentication Server to get the user information.
 
-The Transparent SSO makes a request using this token type and this token value, to authorize a request to the original
-OAuth2 server.
+The third part is an access token itself, which has just been received by the Client on the first step of the authentication protocol.
 
-#### Verifying access token by the Service provider
+For example:
+```
+google-oauth2:Bearer:J24F65G2H4FK246F246F2K2F45F4GK5F24H6F2456H2F52KGF65HG6F
+```
 
-The Service Provider veryfies the token sending authorized request to the Authorization Server. The request is absolutely same,
-as for the User details in the OAuth protocol.
+##### Using HTTP header
 
-If the request returns the current user info, it means that the access to the Service Provider resource should be granted.
+The `Authorization` header value consists of the `authentication keyword` and `authentication value` separated by a space character.
 
-The Service Provider may cache the token check results to avoid unnecessary requests to the Authentication Server
-every time when the resource is requested. The `settings.TSSO_EXPIRATION_PERIOD` variable controls, how many
-seconds the cached token is valid without additional check on the Authorization Server side. The `settings.TSSO_EXPIRATION_PERIOD`
-value doesn't influence the user experience. It only controls, how much time the result of the last successfull
+For example:
+
+```
+Authorization: SSO google-oauth2:Bearer:J24F65G2H4FK246F246F2K2F45F4GK5F24H6F2456H2F52KGF65HG6F
+```
+
+##### Using HTTP query string
+
+The client provides the HTTP query string with the `authentication keyword` parameter, whose value is the `authentication value`.
+
+For example:
+
+```
+http://example.com/resource-url/?SSO=google-oauth2:Bearer:J24F65G2H4FK246F246F2K2F45F4GK5F24H6F2456H2F52KGF65HG6F
+```
+
+The `TSSO_FORBID_QUERY_AUTHENTICATION=True` setting forbids this way of the authentication. It is allowed by default.
+
+
+##### Using HTTP POST form-based body
+
+The HTTP POST form-based body should contain the `authentication keyword` parameter, whose value is the `authentication value`.
+The HTTP POST Content Type header should be one of used for the form output. Other formats are ignored.
+
+For example:
+
+```
+Content-Type: application/x-www-form-urlencoded
+
+SSO=google-oauth2:Bearer:J24F65G2H4FK246F246F2K2F45F4GK5F24H6F2456H2F52KGF65HG6F
+```
+
+The `TSSO_FORBID_POST_AUTHENTICATION` setting forbids this way of the authentication. It is allowed by default.
+
+#### Verifying access token by the Service Provider
+
+The Service Provider veryfies the token sending authorized request to the Authorization Server.
+
+For this purpose, the TSSO asks the [Python Social Auth](https://python-social-auth.readthedocs.io/en/latest/backends/index.html) package
+authorization backend to continue the pipeline. In case of the OAuth2, the package just requests User details
+from the Authentication Server.
+
+If the [Python Social Auth](https://python-social-auth.readthedocs.io/en/latest/backends/index.html) package pipeline
+returns the correct user info, the TSSO thinks that the access to the Service Provider resource should be granted.
+
+The TSSO caches the token check results to avoid unnecessary requests to the Authentication Server
+every time when the resource is requested. The `TSSO_EXPIRATION_PERIOD` settings variable controls, how many
+seconds the cached token is valid without additional check on the Authorization Server side. The `TSSO_EXPIRATION_PERIOD`
+settings variable doesn't influence the user experience. It only controls, how much time the result of the last successfull
 token verification will be cached.
 
 ## Controlling users in the Authentication Pipeline
@@ -257,13 +326,20 @@ Authorization Server will be authorized by the Service Provider using this token
 
 Therefore, if you use the Google server and restrict access to your Client Application by domain name (this restriction
 is controlled by the Google on the stage of OAuth2 authorization), this restriction will not work for the Service Provider,
-because the only User request is used to verify the token (instead of the full Authorization pipeline of the OAuth2 protocol).
+because originally, the only User request is used to verify the token (instead of the full Authorization pipeline of the OAuth2 protocol).
 Any user, who is registered on the Google, may send his token and get access to the Service Provider data, if no additional checks
 are provided.
 
-Notice, that the SSO subsystem of the Service Provider doesn't know about a Client ID used to generate this token,
-and as such, can't authorize the Client ID.
+Install your additional checks, for example the token introspection request, as described in the [draft](https://www.rfc-editor.org/rfc/inline-errata/rfc7662.html),
+into the [Python Social Auth](https://python-social-auth.readthedocs.io/en/latest/backends/index.html) authorization pipeline,
+for example:
 
-Therefore, if you want to restrict access to the Service Provider by some circumstances, these circumstances should be controlled
-by your own code in the SSO Authentication Pipeline.
-
+```python
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'myapp.authentication.introspect_token',
+    'myapp.authentication.restrict_email_domain',
+    'myapp.authentication.verify_client_id',
+    ...
+)
+```
