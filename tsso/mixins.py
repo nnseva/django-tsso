@@ -69,7 +69,7 @@ class TSSOAuthenticationMixin:
             return (sso.user, sso, backend)
 
         try:
-            user = backend.do_auth(token, token_type=token_type)
+            user = backend.do_auth(token, token_type=token_type, request=request)
         except Exception as ex:
             raise exceptions.PermissionDenied(
                 'Token is not authorized: %s:%s:%s: %s' % (backend_name, token_type, token, ex)
