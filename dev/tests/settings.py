@@ -147,6 +147,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        'tsso': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
     'filters': {
         'require_debug_false': {
