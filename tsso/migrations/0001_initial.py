@@ -4,6 +4,11 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
+if hasattr(settings, 'DEFAULT_AUTO_FIELD'):
+    from django.utils.module_loading import import_string
+    AutoField = import_string(settings.DEFAULT_AUTO_FIELD)
+else:
+    AutoField = models.AutoField
 
 class Migration(migrations.Migration):
     initial = True
@@ -18,7 +23,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
+                    AutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
