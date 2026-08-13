@@ -8,12 +8,14 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
-class SSOToken(models.Model):
+class SSOTokenBase(models.Model):
     """
     SSOToken is a token provided by the client to log in using foreign OAuth2 server.
 
     When the client provides a token to log in, the application checks it's presence
     in the database and its TTL and other parameters.
+
+    This is a base abstract class to provide a common structure necessary to implement
     """
     backend = models.CharField(
         max_length=80,
@@ -22,10 +24,6 @@ class SSOToken(models.Model):
     token = models.CharField(
         max_length=255,
         verbose_name=_('Token'), help_text=_('The backend-specific token')
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sso_tokens',
-        verbose_name=_('User'), help_text=_('User to whom the token belongs')
     )
     ctime = models.DateTimeField(
         auto_now_add=True, db_index=True,
@@ -60,3 +58,14 @@ class SSOToken(models.Model):
         unique_together = (
             ('backend', 'token'),
         )
+        abstract = True
+
+
+class SSOToken(SSOTokenBase):
+    """
+    Default implementation of the SSOToken model
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sso_tokens',
+        verbose_name=_('User'), help_text=_('User to whom the token belongs')
+    )
